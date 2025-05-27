@@ -1,189 +1,152 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Ad Budget Allocator</title>
+  <title>Ad Budget Allocator - Table Input</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto; }
-    input { margin: 5px; width: 100px; }
-    .channel { margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-    #result { margin-top: 20px; }
-    button { margin: 5px; }
-    table { border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 8px 12px; border: 1px solid #ccc; }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: auto; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    input { width: 100px; }
+    button { margin: 5px; padding: 6px 12px; }
   </style>
 </head>
 <body>
   <h1>Ad Budget Allocator</h1>
+  <label>Total Budget ($): <input type="number" id="totalBudget" placeholder="Enter total budget"></label>
 
-  <label>Total Budget: $</label>
-  <input type="number" id="totalBudget" placeholder="1000"><br><br>
+  <table id="channelTable">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>ROI</th>
+        <th>Min ($)</th>
+        <th>Max ($)</th>
+        <th>Manual Budget ($)</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  <div id="channels"></div>
-  <button onclick="addChannel()">Add Channel</button>
+  <button onclick="addChannelRow()">Add Channel</button>
   <button onclick="allocateBudget()">Allocate Budget</button>
   <button onclick="exportCSV()">Export CSV</button>
+  <button onclick="clearData()">Reset All</button>
 
   <div id="result"></div>
 
   <script>
-    let channelCount = 0;
-
-    function saveInputs() {
-      const channels = [];
-      document.querySelectorAll('.channel').forEach(div => {
-        channels.push({
-          name: div.querySelector('.name').value,
-          roi: div.querySelector('.roi').value,
-          min: div.querySelector('.min').value,
-          max: div.querySelector('.max').value,
-          fixed: div.querySelector('.fixed').value,
-        });
+    function saveState() {
+      const rows = [...document.querySelectorAll("#channelTable tbody tr")];
+      const data = rows.map(row => {
+        const inputs = row.querySelectorAll("input");
+        return {
+          name: inputs[0].value,
+          roi: inputs[1].value,
+          min: inputs[2].value,
+          max: inputs[3].value,
+          fixed: inputs[4].value
+        };
       });
-      const totalBudget = document.getElementById("totalBudget").value;
-      localStorage.setItem("allocator_channels", JSON.stringify(channels));
-      localStorage.setItem("allocator_budget", totalBudget);
+      localStorage.setItem("channels", JSON.stringify(data));
+      localStorage.setItem("totalBudget", document.getElementById("totalBudget").value);
     }
 
-    function loadInputs() {
-      const saved = localStorage.getItem("allocator_channels");
-      const budget = localStorage.getItem("allocator_budget");
+    function loadState() {
+      const saved = JSON.parse(localStorage.getItem("channels") || "[]");
+      const budget = localStorage.getItem("totalBudget");
       if (budget) document.getElementById("totalBudget").value = budget;
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        parsed.forEach(ch => addChannel(ch.name, ch.roi, ch.min, ch.max, ch.fixed));
-      } else {
-        addChannel("Facebook", 1.5);
-        addChannel("Google", 2.0);
-        addChannel("TikTok", 1.2);
-      }
+      if (saved.length) saved.forEach(ch => addChannelRow(ch.name, ch.roi, ch.min, ch.max, ch.fixed));
+      else addChannelRow("ONSITE SEARCH", 9.84, '', '', 10659000);
     }
 
-    function addChannel(name = '', roi = '', min = '', max = '', fixed = '') {
-      const div = document.createElement('div');
-      div.className = 'channel';
-      div.innerHTML = `
-        <label>Channel Name:</label>
-        <input type="text" class="name" value="${name}" placeholder="e.g. Facebook">
-        <label>ROI:</label>
-        <input type="number" step="0.01" class="roi" value="${roi}" placeholder="e.g. 1.5">
-        <label>Min:</label>
-        <input type="number" step="0.01" class="min" value="${min}">
-        <label>Max:</label>
-        <input type="number" step="0.01" class="max" value="${max}">
-        <label>Manual Budget:</label>
-        <input type="number" step="0.01" class="fixed" value="${fixed}">
-        <button onclick="removeChannel(this)">Remove</button>
+    function addChannelRow(name = '', roi = '', min = '', max = '', fixed = '') {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input type="text" value="${name}" oninput="saveState()"></td>
+        <td><input type="number" step="0.01" value="${roi}" oninput="saveState()"></td>
+        <td><input type="number" value="${min}" oninput="saveState()"></td>
+        <td><input type="number" value="${max}" oninput="saveState()"></td>
+        <td><input type="number" value="${fixed}" oninput="saveState()"></td>
+        <td><button onclick="this.closest('tr').remove(); saveState();">X</button></td>
       `;
-      document.getElementById('channels').appendChild(div);
-      channelCount++;
-      div.querySelectorAll('input').forEach(inp => inp.addEventListener('input', saveInputs));
+      document.querySelector("#channelTable tbody").appendChild(row);
     }
 
-    function removeChannel(btn) {
-      btn.parentElement.remove();
-      channelCount--;
-      saveInputs();
+    function clearData() {
+      localStorage.clear();
+      document.getElementById("channelTable").querySelector("tbody").innerHTML = "";
+      document.getElementById("result").innerHTML = "";
+      document.getElementById("totalBudget").value = "";
     }
 
     function allocateBudget() {
       const budget = parseFloat(document.getElementById("totalBudget").value);
-      if (isNaN(budget) || budget <= 0) {
-        document.getElementById("result").innerHTML = "<p style='color:red;'>Enter a valid total budget.</p>";
-        return;
-      }
+      if (isNaN(budget) || budget <= 0) return alert("Enter a valid budget");
 
-      const names = document.querySelectorAll(".name");
-      const rois = document.querySelectorAll(".roi");
-      const mins = document.querySelectorAll(".min");
-      const maxs = document.querySelectorAll(".max");
-      const fixeds = document.querySelectorAll(".fixed");
-
-      let data = [];
-      for (let i = 0; i < names.length; i++) {
-        const name = names[i].value.trim() || `Channel ${i + 1}`;
-        const roi = parseFloat(rois[i].value);
-        const min = parseFloat(mins[i].value);
-        const max = parseFloat(maxs[i].value);
-        const fixed = parseFloat(fixeds[i].value);
-
-        if (isNaN(roi) || roi <= 0) {
-          document.getElementById("result").innerHTML = "<p style='color:red;'>Please enter valid ROI values.</p>";
-          return;
-        }
-
-        data.push({
-          name,
-          roi,
-          min: isNaN(min) ? 0 : min,
-          max: isNaN(max) ? Infinity : max,
-          fixed: isNaN(fixed) ? null : fixed,
+      const rows = [...document.querySelectorAll("#channelTable tbody tr")];
+      let data = rows.map(row => {
+        const inputs = row.querySelectorAll("input");
+        return {
+          name: inputs[0].value,
+          roi: parseFloat(inputs[1].value),
+          min: parseFloat(inputs[2].value) || 0,
+          max: parseFloat(inputs[3].value) || Infinity,
+          fixed: parseFloat(inputs[4].value),
           allocated: 0
-        });
-      }
+        };
+      });
 
       let remaining = budget;
       let totalROI = 0;
 
-      // Step 1: Lock fixed budgets
       data.forEach(d => {
-        if (d.fixed !== null) {
+        if (!isNaN(d.fixed)) {
           d.allocated = Math.max(d.min, Math.min(d.fixed, d.max));
           remaining -= d.allocated;
         }
       });
 
-      // Step 2: Calculate total ROI of unlocked channels
-      data.filter(d => d.fixed === null).forEach(d => {
-        totalROI += d.roi;
-      });
+      const flexChannels = data.filter(d => isNaN(d.fixed)).sort((a, b) => b.roi - a.roi);
+      flexChannels.forEach(d => totalROI += d.roi);
 
-      // Step 3: Allocate remaining budget to unlocked channels by ROI
-      const unlocked = data.filter(d => d.fixed === null).sort((a, b) => b.roi - a.roi);
-      for (let d of unlocked) {
+      for (let d of flexChannels) {
         let ideal = (d.roi / totalROI) * remaining;
-        let allocation = Math.min(Math.max(ideal, d.min), d.max);
-        if (allocation > remaining) allocation = remaining;
-        d.allocated = allocation;
-        remaining -= allocation;
+        let alloc = Math.min(Math.max(ideal, d.min), d.max);
+        alloc = Math.min(alloc, remaining);
+        d.allocated = alloc;
+        remaining -= alloc;
         if (remaining <= 0) break;
       }
 
-      // Step 4: Calculate final revenue
-      let revenue = data.reduce((sum, d) => sum + (d.allocated * d.roi), 0);
-
-      // Step 5: Display result
-      let output = "<h2>Budget Allocation</h2><table><tr><th>Channel</th><th>ROI</th><th>Allocated ($)</th><th>Estimated Revenue ($)</th></tr>";
+      let output = `<h2>Result</h2><table><tr><th>Channel</th><th>ROI</th><th>Allocated ($)</th><th>Revenue ($)</th></tr>`;
+      let totalRev = 0;
       data.forEach(d => {
-        output += `<tr><td>${d.name}</td><td>${d.roi}</td><td>${d.allocated.toFixed(2)}</td><td>${(d.allocated * d.roi).toFixed(2)}</td></tr>`;
+        let rev = d.allocated * d.roi;
+        totalRev += rev;
+        output += `<tr><td>${d.name}</td><td>${d.roi}</td><td>${d.allocated.toFixed(2)}</td><td>${rev.toFixed(2)}</td></tr>`;
       });
-      output += `</table><p><strong>Total Estimated Revenue: $${revenue.toFixed(2)}</strong></p>`;
+      output += `</table><p><strong>Total Estimated Revenue: $${totalRev.toFixed(2)}</strong></p>`;
       document.getElementById("result").innerHTML = output;
-
-      window.allocatedData = data;
+      window.resultData = data;
     }
 
     function exportCSV() {
-      if (!window.allocatedData) {
-        alert("Please allocate the budget first.");
-        return;
-      }
-
+      if (!window.resultData) return alert("Please run allocation first.");
       let csv = "Channel,ROI,Allocated Budget,Estimated Revenue\n";
-      window.allocatedData.forEach(d => {
+      window.resultData.forEach(d => {
         csv += `${d.name},${d.roi},${d.allocated.toFixed(2)},${(d.allocated * d.roi).toFixed(2)}\n`;
       });
-
       const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "budget_allocation.csv");
+      link.href = URL.createObjectURL(blob);
+      link.download = "budget_allocation.csv";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
-    loadInputs();
+    loadState();
   </script>
 </body>
 </html>
