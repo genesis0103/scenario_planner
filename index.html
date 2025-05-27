@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ad Budget Allocator</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #111; color: #eee; margin: 2rem; }
+    body { font-family: Arial, sans-serif; background: #f9fafb; color: #111827; margin: 2rem; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-    th, td { padding: 0.5rem; text-align: center; border: 1px solid #444; }
-    th { background-color: #ffcc00; color: black; }
+    th, td { padding: 0.5rem; text-align: center; border: 1px solid #d1d5db; }
+    th { background-color: #3b82f6; color: white; }
     input { width: 100%; padding: 0.3rem; }
     button { padding: 0.5rem 1rem; margin-top: 1rem; }
-    .highlight { background-color: #ffe680; color: black; }
+    .highlight { background-color: #dbeafe; color: #1e3a8a; }
     .save-section { margin-top: 2rem; }
     .slot { display: flex; align-items: center; margin: 0.2rem 0; }
     .slot span { flex: 1; }
     .slot button { margin-left: 0.3rem; }
-    .green { color: lightgreen; }
-    .purple { color: violet; }
+    .green { color: green; }
+    .purple { color: rebeccapurple; }
     .gray { color: gray; }
   </style>
 </head>
@@ -40,6 +40,8 @@
       <tr><td><input value="TIKTOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
     </tbody>
   </table>
+
+  <button onclick="addNewRow()">Add New Row</button>
 
   <label>Total Budget ($): <input type="number" id="totalBudget" value="1000000"></label>
   <br><button onclick="allocateBudget()">Allocate Budget</button>
@@ -110,7 +112,16 @@
       document.getElementById('totalGMV').innerText = totalGMV.toLocaleString();
     }
 
-    // Save system with 5 slots
+    function addNewRow() {
+      const tbody = document.querySelector('#inputTable tbody');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><input></td>
+        <td><input type="number"></td>
+        <td><input type="number"></td>`;
+      tbody.appendChild(row);
+    }
+
     function updateSlots() {
       const container = document.getElementById('slots');
       container.innerHTML = '';
@@ -145,13 +156,15 @@
     function loadFromSlot(i) {
       const data = JSON.parse(localStorage.getItem(`budget_slot_${i}`));
       if (!data) return;
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      data.forEach((d, idx) => {
-        if (rows[idx]) {
-          rows[idx].cells[0].children[0].value = d.channel;
-          rows[idx].cells[1].children[0].value = d.roas;
-          rows[idx].cells[2].children[0].value = d.manual;
-        }
+      const tbody = document.querySelector('#inputTable tbody');
+      tbody.innerHTML = '';
+      data.forEach(d => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><input value="${d.channel}"></td>
+          <td><input type="number" value="${d.roas}"></td>
+          <td><input type="number" value="${d.manual}"></td>`;
+        tbody.appendChild(row);
       });
     }
 
