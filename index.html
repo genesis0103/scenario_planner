@@ -1,205 +1,111 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ad Budget Allocator</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; color: #111827; margin: 2rem; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-    th, td { padding: 0.5rem; text-align: center; border: 1px solid #d1d5db; }
-    th { background-color: #3b82f6; color: white; }
-    input { width: 100%; padding: 0.3rem; }
-    button { padding: 0.5rem 1rem; margin-top: 1rem; }
-    .highlight { background-color: #dbeafe; color: #1e3a8a; }
-    .save-section { margin-top: 2rem; }
-    .slot { display: flex; align-items: center; margin: 0.2rem 0; }
-    .slot span { flex: 1; }
-    .slot button { margin-left: 0.3rem; }
-    .green { color: green; }
-    .purple { color: rebeccapurple; }
-    .gray { color: gray; }
-  </style>
-</head>
-<body>
-  <h1>Advertising Budget Allocator</h1>
-  <table id="inputTable">
-    <thead>
-      <tr>
-        <th>Channel</th>
-        <th>ROAS</th>
-        <th>Manual Budget %</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td><input value="ONSITE SEARCH"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="ONSITE DISPLAY"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="AFFILIATE"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="FACEBOOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="GOOGLE SHOPPING ADS"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="TIKTOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
-    </tbody>
-  </table>
+import React, { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-  <button onclick="addNewRow()">Add New Row</button>
+export default function BudgetAllocator() {
+  const [inputs, setInputs] = useState([
+    { channel: "", budget: "", roas: "" },
+  ]);
+  const [results, setResults] = useState(null);
 
-  <label>Total Budget ($): <input type="number" id="totalBudget" value="1000000"></label>
-  <br><button onclick="allocateBudget()">Allocate Budget</button>
+  const handleChange = (index, field, value) => {
+    const newInputs = [...inputs];
+    newInputs[index][field] = value;
+    setInputs(newInputs);
+  };
 
-  <h2>Output</h2>
-  <table id="outputTable">
-    <thead>
-      <tr>
-        <th>Channel</th>
-        <th>Budget %</th>
-        <th>Budget ($)</th>
-        <th>ROAS</th>
-        <th>GMV</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  const handleAddRow = () => {
+    setInputs([...inputs, { channel: "", budget: "", roas: "" }]);
+  };
 
-  <div><strong>Total GMV:</strong> $<span id="totalGMV">0</span></div>
+  const handleRemoveRow = (index) => {
+    const newInputs = [...inputs];
+    newInputs.splice(index, 1);
+    setInputs(newInputs);
+  };
 
-  <div class="save-section">
-    <h3>存檔</h3>
-    <div id="slots"></div>
-  </div>
+  const handleSubmit = () => {
+    const totalBudget = inputs.reduce(
+      (sum, row) => sum + parseFloat(row.budget || 0),
+      0
+    );
 
-  <script>
-    function allocateBudget() {
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      let channels = [];
+    const parsedData = inputs.map((row) => ({
+      ...row,
+      roas: parseFloat(row.roas),
+    }));
 
-      let manualPercent = 0;
-      rows.forEach(row => {
-        const channel = row.cells[0].children[0].value;
-        const roas = parseFloat(row.cells[1].children[0].value);
-        const manual = parseFloat(row.cells[2].children[0].value);
+    // Sort by ROAS descending
+    const sortedData = [...parsedData].sort((a, b) => b.roas - a.roas);
 
-        if (!isNaN(roas)) {
-          channels.push({ channel, roas, manualPercent: isNaN(manual) ? null : manual });
-          if (!isNaN(manual)) manualPercent += manual;
-        }
-      });
-
-      const availablePercent = 100 - manualPercent;
-      const remaining = channels.filter(c => c.manualPercent === null);
-      const totalWeight = remaining.reduce((sum, c) => sum + c.roas, 0);
-
-      channels.forEach(c => {
-        c.allocatedPercent = c.manualPercent !== null ? c.manualPercent : (c.roas / totalWeight * availablePercent);
-        c.allocatedBudget = totalBudget * (c.allocatedPercent / 100);
-        c.gmv = c.allocatedBudget * c.roas;
-      });
-
-      const tbody = document.querySelector('#outputTable tbody');
-      tbody.innerHTML = '';
-      let totalGMV = 0;
-      channels.forEach(c => {
-        totalGMV += c.gmv;
-        tbody.innerHTML += `
-          <tr>
-            <td>${c.channel}</td>
-            <td>${c.allocatedPercent.toFixed(2)}%</td>
-            <td>$${c.allocatedBudget.toLocaleString()}</td>
-            <td>${c.roas}</td>
-            <td>$${c.gmv.toLocaleString()}</td>
-          </tr>`;
-      });
-      document.getElementById('totalGMV').innerText = totalGMV.toLocaleString();
-    }
-
-    function addNewRow() {
-      const tbody = document.querySelector('#inputTable tbody');
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td><input></td>
-        <td><input type="number"></td>
-        <td><input type="number"></td>`;
-      tbody.appendChild(row);
-    }
-
-    function updateSlots() {
-      const container = document.getElementById('slots');
-      container.innerHTML = '';
-      for (let i = 1; i <= 5; i++) {
-        const key = `budget_slot_${i}`;
-        const data = localStorage.getItem(key);
-        const div = document.createElement('div');
-        div.className = 'slot';
-        div.innerHTML = `
-          <span>0${i}. ${data ? '' : 'NO DATA'}</span>
-          <button class="green" onclick="saveToSlot(${i})">💾</button>
-          <button onclick="loadFromSlot(${i})">📤</button>
-          <button class="gray" onclick="deleteSlot(${i})">🗑️</button>
-          <button class="gray" onclick="downloadSlot(${i})">⬇️</button>
-          <button class="purple" onclick="uploadSlot(${i})">⬆️</button>
-        `;
-        container.appendChild(div);
-      }
-    }
-
-    function saveToSlot(i) {
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      const data = Array.from(rows).map(row => ({
-        channel: row.cells[0].children[0].value,
-        roas: row.cells[1].children[0].value,
-        manual: row.cells[2].children[0].value,
-      }));
-      localStorage.setItem(`budget_slot_${i}`, JSON.stringify(data));
-      updateSlots();
-    }
-
-    function loadFromSlot(i) {
-      const data = JSON.parse(localStorage.getItem(`budget_slot_${i}`));
-      if (!data) return;
-      const tbody = document.querySelector('#inputTable tbody');
-      tbody.innerHTML = '';
-      data.forEach(d => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td><input value="${d.channel}"></td>
-          <td><input type="number" value="${d.roas}"></td>
-          <td><input type="number" value="${d.manual}"></td>`;
-        tbody.appendChild(row);
-      });
-    }
-
-    function deleteSlot(i) {
-      localStorage.removeItem(`budget_slot_${i}`);
-      updateSlots();
-    }
-
-    function downloadSlot(i) {
-      const data = localStorage.getItem(`budget_slot_${i}`);
-      if (!data) return;
-      const blob = new Blob([data], { type: 'application/json' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `budget_slot_${i}.json`;
-      link.click();
-    }
-
-    function uploadSlot(i) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = () => {
-          localStorage.setItem(`budget_slot_${i}`, reader.result);
-          updateSlots();
-        };
-        reader.readAsText(file);
+    // Allocate budget to maximize GMV
+    let remainingBudget = totalBudget;
+    const allocation = sortedData.map((row) => {
+      const allocated = remainingBudget > 0 ? parseFloat(row.budget) : 0;
+      remainingBudget -= allocated;
+      return {
+        channel: row.channel,
+        allocatedBudget: allocated,
+        gmv: allocated * row.roas,
       };
-      input.click();
-    }
+    });
 
-    updateSlots();
-  </script>
-</body>
-</html>
+    const totalGMV = allocation.reduce((sum, row) => sum + row.gmv, 0);
+
+    setResults({ allocation, totalGMV });
+  };
+
+  return (
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">Budget Allocator</h1>
+      {inputs.map((row, index) => (
+        <div key={index} className="grid grid-cols-4 gap-2 mb-2 items-center">
+          <Input
+            placeholder="Channel"
+            value={row.channel}
+            onChange={(e) => handleChange(index, "channel", e.target.value)}
+          />
+          <Input
+            type="number"
+            placeholder="Budget"
+            value={row.budget}
+            onChange={(e) => handleChange(index, "budget", e.target.value)}
+          />
+          <Input
+            type="number"
+            placeholder="ROAS"
+            value={row.roas}
+            onChange={(e) => handleChange(index, "roas", e.target.value)}
+          />
+          <Button variant="outline" onClick={() => handleRemoveRow(index)}>
+            Remove
+          </Button>
+        </div>
+      ))}
+      <Button className="mb-4" onClick={handleAddRow}>
+        Add New Row
+      </Button>
+      <br />
+      <Button className="mb-4" onClick={handleSubmit}>
+        Calculate Allocation
+      </Button>
+
+      {results && (
+        <Card className="mt-4">
+          <CardContent>
+            <h2 className="text-lg font-semibold mb-2">Allocation Results</h2>
+            <ul>
+              {results.allocation.map((row, index) => (
+                <li key={index}>
+                  {row.channel}: ${row.allocatedBudget.toFixed(2)} → GMV: ${row.gmv.toFixed(2)}
+                </li>
+              ))}
+            </ul>
+            <p className="font-bold mt-2">Total GMV: ${results.totalGMV.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
