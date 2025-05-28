@@ -1,281 +1,128 @@
 <!DOCTYPE html><html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Advertising Budget Allocator</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9fafb; color: #111827; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-    th, td { padding: 0.5rem; text-align: center; border: 1px solid #d1d5db; }
-    th { background-color: #3b82f6; color: white; }
-    input { width: 100%; padding: 0.3rem; }
-    button { padding: 0.5rem 1rem; margin-right: 1rem; margin-top: 1rem; }
-    .warning { color: red; font-weight: bold; }
-    .success { color: green; font-weight: bold; }
-    tfoot td { font-weight: bold; background-color: #f3f4f6; }
-    #chart-container { max-width: 600px; margin-top: 2rem; }
-  </style>
-</head>
-<body>
-  <h1>Advertising Budget Allocator</h1><label>Total Budget ($): <input type="number" id="totalBudget" value="1000000"></label><br><br> <label>Target GMV ($): <input type="number" id="targetGMV" value="2000000"></label><br><br> <label>Allocation Method: <select id="method"> <option value="maximize">Maximize GMV</option> <option value="equally">Allocate Equally</option> <option value="proportional">ROAS Proportional</option> </select> </label><br>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advertising Budget Allocator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
+      <h1 class="text-2xl font-bold mb-4">Advertising Budget Allocator</h1>
+      <form id="budgetForm">
+        <div class="grid grid-cols-3 gap-4 mb-4" id="inputContainer">
+          <!-- Dynamic Inputs Here -->
+        </div>
+        <div class="flex items-center gap-4 mb-4">
+          <input
+            type="number"
+            id="totalBudget"
+            placeholder="Total Budget"
+            class="border p-2 w-48"
+            required
+          />
+          <select
+            id="objective"
+            class="border p-2 w-48"
+            required
+          >
+            <option value="maximizeGMV">Maximize GMV</option>
+            <option value="maximizeROAS">Maximize ROAS</option>
+          </select>
+          <button
+            type="submit"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Allocate Budget
+          </button>
+        </div>
+      </form>
+      <div>
+        <canvas id="allocationChart"></canvas>
+        <div id="allocationDetails" class="mt-4 text-sm"></div>
+      </div>
+    </div><script>
+  const inputContainer = document.getElementById("inputContainer");
+  const numChannels = 3;
+  for (let i = 0; i < numChannels; i++) {
+    const inputGroup = document.createElement("div");
+    inputGroup.classList.add("flex", "flex-col", "space-y-1");
 
-  <table id="inputTable">
-    <thead>
-      <tr>
-        <th>Channel</th>
-        <th>ROAS</th>
-        <th>Manual Budget %</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td><input value="ONSITE SEARCH"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="ONSITE DISPLAY"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="AFFILIATE"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="FACEBOOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="GOOGLE SHOPPING ADS"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="TIKTOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
-    </tbody>
-  </table><button onclick="addNewRow()">Add New Row</button> <button onclick="allocateBudget()">Allocate Budget</button> <button onclick="exportCSV()">Export CSV</button>
+    inputGroup.innerHTML = `
+      <input type="text" placeholder="Channel ${i + 1}" class="channel border p-2" required />
+      <input type="number" placeholder="ROAS" class="roas border p-2" required />
+      <input type="number" placeholder="Max Budget" class="maxBudget border p-2" required />
+    `;
 
-  <h2>Output</h2>
-  <table id="outputTable">
-    <thead>
-      <tr>
-        <th>Channel</th>
-        <th>Budget %</th>
-        <th>Budget ($)</th>
-        <th>ROAS</th>
-        <th>GMV</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-    <tfoot>
-      <tr>
-        <td>Total</td>
-        <td id="totalPercent">0%</td>
-        <td id="totalBudgetUsed">$0</td>
-        <td></td>
-        <td id="totalGMV">$0</td>
-      </tr>
-    </tfoot>
-  </table>  <div><strong>Total ROAS:</strong> <span id="totalROAS">0</span></div>
-  <div id="gmvWarning"></div>
-  <div id="budgetWarning"></div>  <div id="chart-container">
-    <h3>Estimated GMV by Channel</h3>
-    <canvas id="gmvChart"></canvas>
-  </div>  <script>
-    let chart;
+    inputContainer.appendChild(inputGroup);
+  }
 
-    function addNewRow() {
-      const tbody = document.querySelector('#inputTable tbody');
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td><input></td>
-        <td><input type="number"></td>
-        <td><input type="number"></td>
-      `;
-      tbody.appendChild(row);
+  const form = document.getElementById("budgetForm");
+  const chartCanvas = document.getElementById("allocationChart");
+  let pieChart;
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const channels = Array.from(document.querySelectorAll(".channel")).map(
+      (input) => input.value
+    );
+    const roas = Array.from(document.querySelectorAll(".roas")).map((input) =>
+      parseFloat(input.value)
+    );
+    const maxBudgets = Array.from(document.querySelectorAll(".maxBudget")).map(
+      (input) => parseFloat(input.value)
+    );
+    const totalBudget = parseFloat(document.getElementById("totalBudget").value);
+    const objective = document.getElementById("objective").value;
+
+    const allocations = new Array(channels.length).fill(0);
+    let remainingBudget = totalBudget;
+
+    const sortedIndices = [...roas.keys()].sort((a, b) => roas[b] - roas[a]);
+
+    for (const index of sortedIndices) {
+      if (remainingBudget <= 0) break;
+      const allocate = Math.min(maxBudgets[index], remainingBudget);
+      allocations[index] = allocate;
+      remainingBudget -= allocate;
     }
 
-    function allocateBudget() {
-      const method = document.getElementById("method").value;
-      if (method === "maximize") allocateMaximizeGMV();
-      else if (method === "equally") allocateEqually();
-      else allocateProportional();
-    }
-
-    function allocateMaximizeGMV() {
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
-      let manualPercent = 0;
-      let manualChannels = [];
-      let autoChannels = [];
-
-      rows.forEach(row => {
-        const channel = row.cells[0].children[0].value;
-        const roas = parseFloat(row.cells[1].children[0].value);
-        const manual = parseFloat(row.cells[2].children[0].value);
-
-        if (!channel || isNaN(roas)) return;
-
-        if (!isNaN(manual)) {
-          manualPercent += manual;
-          manualChannels.push({ channel, roas, percent: manual });
-        } else {
-          autoChannels.push({ channel, roas });
-        }
-      });
-
-      const remainingPercent = 100 - manualPercent;
-      autoChannels.sort((a, b) => b.roas - a.roas);
-      const totalRoas = autoChannels.reduce((sum, c) => sum + c.roas, 0);
-
-      autoChannels.forEach(c => {
-        c.percent = (c.roas / totalRoas) * remainingPercent;
-      });
-
-      const channels = [...manualChannels, ...autoChannels];
-      channels.forEach(c => {
-        c.allocatedBudget = totalBudget * (c.percent / 100);
-        c.gmv = c.allocatedBudget * c.roas;
-      });
-
-      displayOutput(channels, totalBudget, targetGMV, manualPercent);
-    }
-
-    function allocateEqually() {
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
-      let manualPercent = 0;
-      let channels = [];
-
-      rows.forEach(row => {
-        const channel = row.cells[0].children[0].value;
-        const roas = parseFloat(row.cells[1].children[0].value);
-        const manual = parseFloat(row.cells[2].children[0].value);
-
-        if (!channel || isNaN(roas)) return;
-
-        if (!isNaN(manual)) {
-          manualPercent += manual;
-          channels.push({ channel, roas, percent: manual });
-        } else {
-          channels.push({ channel, roas, percent: null });
-        }
-      });
-
-      const remainingChannels = channels.filter(c => c.percent === null);
-      const remainingPercent = (100 - manualPercent) / remainingChannels.length;
-
-      channels.forEach(c => {
-        if (c.percent === null) c.percent = remainingPercent;
-        c.allocatedBudget = totalBudget * (c.percent / 100);
-        c.gmv = c.allocatedBudget * c.roas;
-      });
-
-      displayOutput(channels, totalBudget, targetGMV, manualPercent);
-    }
-
-    function allocateProportional() {
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
-      let manualPercent = 0;
-      let channels = [];
-
-      rows.forEach(row => {
-        const channel = row.cells[0].children[0].value;
-        const roas = parseFloat(row.cells[1].children[0].value);
-        const manual = parseFloat(row.cells[2].children[0].value);
-
-        if (!channel || isNaN(roas)) return;
-
-        if (!isNaN(manual)) {
-          manualPercent += manual;
-          channels.push({ channel, roas, percent: manual });
-        } else {
-          channels.push({ channel, roas, percent: null });
-        }
-      });
-
-      const remaining = channels.filter(c => c.percent === null);
-      const totalRoas = remaining.reduce((sum, c) => sum + c.roas, 0);
-      const availablePercent = 100 - manualPercent;
-
-      remaining.forEach(c => {
-        c.percent = (c.roas / totalRoas) * availablePercent;
-      });
-
-      channels.forEach(c => {
-        c.allocatedBudget = totalBudget * (c.percent / 100);
-        c.gmv = c.allocatedBudget * c.roas;
-      });
-
-      displayOutput(channels, totalBudget, targetGMV, manualPercent);
-    }
-
-    function displayOutput(channels, totalBudget, targetGMV, manualPercent) {
-      const tbody = document.querySelector('#outputTable tbody');
-      tbody.innerHTML = '';
-      let totalGMV = 0;
-      let usedBudget = 0;
-      let totalPercentUsed = 0;
-      const gmvData = [];
-
-      channels.forEach(c => {
-        usedBudget += c.allocatedBudget;
-        totalGMV += c.gmv;
-        totalPercentUsed += c.percent;
-        gmvData.push({ channel: c.channel, gmv: c.gmv });
-
-        tbody.innerHTML += `
-          <tr>
-            <td>${c.channel}</td>
-            <td>${c.percent.toFixed(2)}%</td>
-            <td>$${c.allocatedBudget.toFixed(2)}</td>
-            <td>${c.roas.toFixed(2)}</td>
-            <td>$${c.gmv.toFixed(2)}</td>
-          </tr>
-        `;
-      });
-
-      const totalROAS = totalGMV / usedBudget;
-      document.getElementById('totalGMV').innerText = `$${totalGMV.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-      document.getElementById('totalROAS').innerText = totalROAS.toFixed(2);
-      document.getElementById('totalPercent').innerText = `${totalPercentUsed.toFixed(2)}%`;
-      document.getElementById('totalBudgetUsed').innerText = `$${usedBudget.toFixed(2)}`;
-      document.getElementById('gmvWarning').innerHTML =
-        totalGMV >= targetGMV ? `<p class="success">✅ Target GMV met or exceeded.</p>` : `<p class="warning">⚠️ Estimated GMV is below target!</p>`;
-      document.getElementById('budgetWarning').innerHTML =
-        manualPercent > 100 ? `<p class="warning">❌ Manual budget exceeds 100%!</p>` : '';
-
-      renderChart(gmvData);
-    }
-
-    function exportCSV() {
-      const rows = document.querySelectorAll('#outputTable tr');
-      let csv = [];
-      rows.forEach(row => {
-        let cols = Array.from(row.querySelectorAll('th, td')).map(cell => `"${cell.innerText}"`);
-        csv.push(cols.join(','));
-      });
-
-      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "budget_allocation.csv";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    function renderChart(data) {
-      const ctx = document.getElementById('gmvChart').getContext('2d');
-      const labels = data.map(d => d.channel);
-      const values = data.map(d => d.gmv.toFixed(2));
-      const colors = data.map((_, i) => `hsl(${i * 60}, 70%, 60%)`);
-
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'GMV ($)',
-            data: values,
-            backgroundColor: colors
-          }]
+    const data = {
+      labels: channels,
+      datasets: [
+        {
+          label: "Allocated Budget",
+          data: allocations,
+          backgroundColor: [
+            "#4F46E5",
+            "#10B981",
+            "#F59E0B",
+            "#EF4444",
+            "#6366F1",
+          ],
         },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
-    }
-  </script></body>
+      ],
+    };
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(chartCanvas, {
+      type: "pie",
+      data,
+    });
+
+    const allocationDetails = document.getElementById("allocationDetails");
+    allocationDetails.innerHTML = allocations
+      .map(
+        (alloc, i) =>
+          `<div><strong>${channels[i]}</strong>: RM ${alloc.toFixed(2)} | ROAS: ${roas[i]} | Max: RM ${maxBudgets[i]}</div>`
+      )
+      .join("");
+  });
+</script>
+
+  </body>
 </html>
