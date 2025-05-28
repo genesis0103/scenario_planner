@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Advertising Budget Allocator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9fafb; color: #111827; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th, td { padding: 0.5rem; text-align: center; border: 1px solid #d1d5db; }
+    th { background-color: #3b82f6; color: white; }
+    input { width: 100%; padding: 0.3rem; }
+    button { padding: 0.5rem 1rem; margin-top: 1rem; }
+    .warning { color: red; font-weight: bold; }
+    .success { color: green; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Advertising Budget Allocator</h1>
+
+  <label>Total Budget ($): <input type="number" id="totalBudget" value="1000000"></label><br><br>
+  <label>Target GMV ($): <input type="number" id="targetGMV" value="2000000"></label><br><br>
+
+  <table id="inputTable">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>ROAS</th>
+        <th>Manual Budget %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><input value="ONSITE SEARCH"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="ONSITE DISPLAY"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="AFFILIATE"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="FACEBOOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="GOOGLE SHOPPING ADS"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="TIKTOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
+    </tbody>
+  </table>
+
+  <button onclick="addNewRow()">Add New Row</button>
+  <button onclick="allocateBudget()">Allocate Budget</button>
+
+  <h2>Output</h2>
+  <table id="outputTable">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>Budget %</th>
+        <th>Budget ($)</th>
+        <th>ROAS</th>
+        <th>GMV</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div><strong>Total GMV:</strong> $<span id="totalGMV">0</span></div>
+  <div><strong>Total ROAS:</strong> <span id="totalROAS">0</span></div>
+  <div id="gmvWarning"></div>
+  <div id="budgetWarning"></div>
+
+  <script>
+    function addNewRow() {
+      const tbody = document.querySelector('#inputTable tbody');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><input></td>
+        <td><input type="number"></td>
+        <td><input type="number"></td>
+      `;
+      tbody.appendChild(row);
+    }
+
+    function allocateBudget() {
+      const rows = document.querySelectorAll('#inputTable tbody tr');
+      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
+      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
+      let manualPercent = 0;
+      let manualChannels = [];
+      let autoChannels = [];
+
+      rows.forEach(row => {
+        const channel = row.cells[0].children[0].value;
+        const roas = parseFloat(row.cells[1].children[0].value);
+        const manual = parseFloat(row.cells[2].children[0].value);
+
+        if (!channel || isNaN(roas)) return;
+
+        if (!isNaN(manual)) {
+          manualPercent += manual;
+          manualChannels.push({ channel, roas, percent: manual });
+        } else {
+          autoChannels.push({ channel, roas });
+        }
+      });
+
+      const remainingPercent = 100 - manualPercent;
+
+      // Sort auto channels by ROAS descending
+      autoChannels.sort((a, b) => b.roas - a.roas);
+
+      // Allocate remaining budget starting with highest ROAS
+      let allocatedPercent = 0;
+      autoChannels.forEach(channel => {
+        if (allocatedPercent < remainingPercent) {
+          let alloc = Math.min(remainingPercent - allocatedPercent, 100);
+          channel.percent = alloc;
+          allocatedPercent += alloc;
+        } else {
+          channel.percent = 0;
+        }
+      });
+
+      // Merge both sets
+      const allChannels = [...manualChannels, ...autoChannels];
+
+      const tbody = document.querySelector('#outputTable tbody');
+      tbody.innerHTML = '';
+      let totalGMV = 0;
+      let usedBudget = 0;
+
+      allChannels.forEach(c => {
+        c.budget = totalBudget * (c.percent / 100);
+        c.gmv = c.budget * c.roas;
+        usedBudget += c.budget;
+        totalGMV += c.gmv;
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${c.channel}</td>
+            <td>${c.percent.toFixed(2)}%</td>
+            <td>$${c.budget.toFixed(2)}</td>
+            <td>${c.roas.toFixed(2)}</td>
+            <td>$${c.gmv.toFixed(2)}</td>
+          </tr>
+        `;
+      });
+
+      const totalROAS = totalGMV / usedBudget;
+
+      document.getElementById('totalGMV').innerText = totalGMV.toLocaleString();
+      document.getElementById('totalROAS').innerText = totalROAS.toFixed(2);
+
+      const gmvWarning = document.getElementById('gmvWarning');
+      const budgetWarning = document.getElementById('budgetWarning');
+
+      gmvWarning.innerHTML = totalGMV >= targetGMV
+        ? `<p class="success">✅ Target GMV met or exceeded.</p>`
+        : `<p class="warning">⚠️ Estimated GMV is below target!</p>`;
+
+      budgetWarning.innerHTML = manualPercent > 100
+        ? `<p class="warning">❌ Manual budget exceeds 100%!</p>`
+        : '';
+    }
+  </script>
+</body>
+</html>
