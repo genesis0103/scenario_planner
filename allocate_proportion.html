@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ad Budget Allocator</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9fafb; color: #111827; margin: 2rem; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th, td { padding: 0.5rem; text-align: center; border: 1px solid #d1d5db; }
+    th { background-color: #3b82f6; color: white; }
+    input { width: 100%; padding: 0.3rem; }
+    button { padding: 0.5rem 1rem; margin-top: 1rem; }
+    .highlight { background-color: #dbeafe; color: #1e3a8a; }
+    .save-section { margin-top: 2rem; }
+    .slot { display: flex; align-items: center; margin: 0.2rem 0; }
+    .slot span { flex: 1; }
+    .slot button { margin-left: 0.3rem; }
+    .green { color: green; }
+    .purple { color: rebeccapurple; }
+    .gray { color: gray; }
+  </style>
+</head>
+<body>
+  <h1>Advertising Budget Allocator</h1>
+  <table id="inputTable">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>ROAS</th>
+        <th>Manual Budget %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><input value="ONSITE SEARCH"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="ONSITE DISPLAY"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="AFFILIATE"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="FACEBOOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="GOOGLE SHOPPING ADS"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr><td><input value="TIKTOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
+    </tbody>
+  </table>
+
+  <button onclick="addNewRow()">Add New Row</button>
+
+  <label>Total Budget ($): <input type="number" id="totalBudget" value="1000000"></label>
+  <br><button onclick="allocateBudget()">Allocate Budget</button>
+
+  <h2>Output</h2>
+  <table id="outputTable">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>Budget %</th>
+        <th>Budget ($)</th>
+        <th>ROAS</th>
+        <th>GMV</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div><strong>Total GMV:</strong> $<span id="totalGMV">0</span></div>
+
+  <script>
+    function allocateBudget() {
+      const rows = document.querySelectorAll('#inputTable tbody tr');
+      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
+      let channels = [];
+
+      let manualPercent = 0;
+      rows.forEach(row => {
+        const channel = row.cells[0].children[0].value;
+        const roas = parseFloat(row.cells[1].children[0].value);
+        const manual = parseFloat(row.cells[2].children[0].value);
+
+        if (!isNaN(roas)) {
+          channels.push({ channel, roas, manualPercent: isNaN(manual) ? null : manual });
+          if (!isNaN(manual)) manualPercent += manual;
+        }
+      });
+
+      const availablePercent = 100 - manualPercent;
+      const remaining = channels.filter(c => c.manualPercent === null);
+      const totalWeight = remaining.reduce((sum, c) => sum + c.roas, 0);
+
+      channels.forEach(c => {
+        c.allocatedPercent = c.manualPercent !== null ? c.manualPercent : (c.roas / totalWeight * availablePercent);
+        c.allocatedBudget = totalBudget * (c.allocatedPercent / 100);
+        c.gmv = c.allocatedBudget * c.roas;
+      });
+
+      const tbody = document.querySelector('#outputTable tbody');
+      tbody.innerHTML = '';
+      let totalGMV = 0;
+      channels.forEach(c => {
+        totalGMV += c.gmv;
+        tbody.innerHTML += `
+          <tr>
+            <td>${c.channel}</td>
+            <td>${c.allocatedPercent.toFixed(2)}%</td>
+            <td>$${c.allocatedBudget.toLocaleString()}</td>
+            <td>${c.roas}</td>
+            <td>$${c.gmv.toLocaleString()}</td>
+          </tr>`;
+      });
+      document.getElementById('totalGMV').innerText = totalGMV.toLocaleString();
+    }
+
+    function addNewRow() {
+      const tbody = document.querySelector('#inputTable tbody');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><input></td>
+        <td><input type="number"></td>
+        <td><input type="number"></td>`;
+      tbody.appendChild(row);
+    }
+  </script>
+</body>
+</html>
