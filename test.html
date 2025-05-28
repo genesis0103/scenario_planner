@@ -138,10 +138,18 @@
       const remainingPercent = 100 - manualPercent;
       autoChannels.sort((a, b) => b.roas - a.roas);
       const totalAutoROAS = autoChannels.reduce((sum, c) => sum + c.roas, 0);
-      autoChannels.forEach(c => {
-        c.percent = (c.roas / totalAutoROAS) * remainingPercent;
-      });
 
+      let allocatedPercent = 0;
+      autoChannels.forEach(channel => {
+        if (allocatedPercent < remainingPercent) {
+          let alloc = Math.min(remainingPercent - allocatedPercent, 100);
+          channel.percent = alloc;
+          allocatedPercent += alloc;
+        } else {
+          channel.percent = 0;
+        }
+      });
+      
       const allChannels = [...manualChannels, ...autoChannels];
       allChannels.forEach(c => {
         c.budget = totalBudget * (c.percent / 100);
