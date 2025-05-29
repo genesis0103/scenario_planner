@@ -3,33 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Advertising Budget Allocator</title>
+  <title>Scenario Planner</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9fafb; color: #111827; }
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9fafb; color: #111827; text-align: center; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
     th, td { padding: 0.5rem; text-align: center; border: 1px solid #d1d5db; }
     th { background-color: #3b82f6; color: white; }
-    input { width: 100%; padding: 0.3rem; }
-    button { padding: 0.5rem 1rem; margin-right: 1rem; margin-top: 1rem; }
+    input, select { width: 100%; padding: 0.3rem; }
+    button { padding: 0.5rem 1rem; margin-right: 0.5rem; margin-top: 1rem; }
     .warning { color: red; font-weight: bold; }
     .success { color: green; font-weight: bold; }
     tfoot td { font-weight: bold; background-color: #f3f4f6; }
-    #chart-container { max-width: 600px; margin-top: 2rem; }
+    #chart-container { max-width: 600px; margin: 2rem auto; }
+    .button-group { margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <h1>Advertising Budget Allocator</h1>
+  <h1>Scenario Planner</h1>
 
-  <label>Total Budget ($): <input type="number" id="totalBudget" value="1000000"></label><br><br>
-  <label>Target GMV ($): <input type="number" id="targetGMV" value="2000000"></label><br><br>
+  <label>Total Budget: <input type="number" id="totalBudget" value="1000000"></label>
+  <br><br>
+  <label>Currency:
+    <select id="currency">
+      <option value="RM">RM</option>
+      <option value="$">$</option>
+      <option value="€">€</option>
+      <option value="£">£</option>
+      <option value="¥">¥</option>
+    </select>
+  </label>
+  <br><br>
+  <label>Target GMV: <input type="number" id="targetGMV" value="2000000"></label><br><br>
   <label>Allocation Method:
     <select id="method">
-      <option value="maximize">Maximize GMV</option>
-      <option value="equally">Allocate Equally</option>
       <option value="proportional">ROAS Proportional</option>
+      <option value="equally">Allocate Equally</option>
+      <option value="maximize">Maximize GMV</option>
     </select>
-  </label><br>
+  </label>
+  <br><br>
 
   <table id="inputTable">
     <thead>
@@ -37,21 +50,53 @@
         <th>Channel</th>
         <th>ROAS</th>
         <th>Manual Budget %</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td><input value="ONSITE SEARCH"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="ONSITE DISPLAY"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="AFFILIATE"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="FACEBOOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="GOOGLE SHOPPING ADS"></td><td><input type="number"></td><td><input type="number"></td></tr>
-      <tr><td><input value="TIKTOK"></td><td><input type="number"></td><td><input type="number"></td></tr>
+      <tr>
+        <td><input value="SEM"></td>
+        <td><input type="number" value="10"></td>
+        <td><input type="number"></td>
+        <td><button onclick="deleteRow(this)">🗑️</button></td>
+      </tr>
+      <tr>
+        <td><input value="Online Display"></td>
+        <td><input type="number" value="15"></td>
+        <td><input type="number"></td>
+        <td><button onclick="deleteRow(this)">🗑️</button></td>
+      </tr>
+      <tr>
+        <td><input value="Meta"></td>
+        <td><input type="number" value="5"></td>
+        <td><input type="number"></td>
+        <td><button onclick="deleteRow(this)">🗑️</button></td>
+      </tr>
+      <tr>
+        <td><input value="Google"></td>
+        <td><input type="number" value="12"></td>
+        <td><input type="number"></td>
+        <td><button onclick="deleteRow(this)">🗑️</button></td>
+      </tr>
+      <tr>
+        <td><input value="Tiktok"></td>
+        <td><input type="number" value="17"></td>
+        <td><input type="number"></td>
+        <td><button onclick="deleteRow(this)">🗑️</button></td>
+      </tr>
     </tbody>
   </table>
 
-  <button onclick="addNewRow()">Add New Row</button>
-  <button onclick="allocateBudget()">Allocate Budget</button>
-  <button onclick="exportCSV()">Export CSV</button>
+  <div class="button-group">
+    <button onclick="addNewRow()">➕ Add New Row</button>
+    <button onclick="allocateBudget()">✅ Allocate Budget</button>
+    <button onclick="exportCSV()">📤 Export CSV</button>
+    <button onclick="saveDataPrompt()">💾 Save Slot</button>
+    <button onclick="loadDataPrompt()">📥 Load Slot</button>
+    <button onclick="downloadSettings()">⬇️ Download Setting</button>
+    <button onclick="uploadSettings()">⬆️ Upload Setting</button>
+    <input type="file" id="uploadFile" style="display:none" onchange="handleFileUpload(event)">
+  </div>
 
   <h2>Output</h2>
   <table id="outputTable">
@@ -59,7 +104,7 @@
       <tr>
         <th>Channel</th>
         <th>Budget %</th>
-        <th>Budget ($)</th>
+        <th>Budget</th>
         <th>ROAS</th>
         <th>GMV</th>
       </tr>
@@ -69,9 +114,9 @@
       <tr>
         <td>Total</td>
         <td id="totalPercent">0%</td>
-        <td id="totalBudgetUsed">$0</td>
+        <td id="totalBudgetUsed">0</td>
         <td></td>
-        <td id="totalGMV">$0</td>
+        <td id="totalGMV">0</td>
       </tr>
     </tfoot>
   </table>
@@ -86,214 +131,82 @@
   </div>
 
   <script>
-    let chart;
+    const savedSettings = {};
 
-    function addNewRow() {
+    function saveDataPrompt() {
+      const slot = prompt("Enter setting name to save (1-5):");
+      if (!slot) return;
+      savedSettings[slot] = serializeSettings();
+      alert(`Saved to "${slot}".`);
+    }
+
+    function loadDataPrompt() {
+      const slot = prompt("Enter setting name to load (1-5):");
+      if (!slot || !savedSettings[slot]) {
+        alert("Setting not found.");
+        return;
+      }
+      deserializeSettings(savedSettings[slot]);
+    }
+
+    function downloadSettings() {
+      const data = JSON.stringify(serializeSettings(), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'scenario_settings.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function uploadSettings() {
+      document.getElementById('uploadFile').click();
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          deserializeSettings(data);
+        } catch (err) {
+          alert("Invalid file format.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function serializeSettings() {
+      const rows = document.querySelectorAll('#inputTable tbody tr');
+      const channels = Array.from(rows).map(row => ({
+        channel: row.cells[0].children[0].value,
+        roas: row.cells[1].children[0].value,
+        percent: row.cells[2].children[0].value
+      }));
+      return {
+        budget: document.getElementById('totalBudget').value,
+        gmv: document.getElementById('targetGMV').value,
+        currency: document.getElementById('currency').value,
+        method: document.getElementById('method').value,
+        channels
+      };
+    }
+
+    function deserializeSettings(data) {
+      document.getElementById('totalBudget').value = data.budget;
+      document.getElementById('targetGMV').value = data.gmv;
+      document.getElementById('currency').value = data.currency;
+      document.getElementById('method').value = data.method;
+
       const tbody = document.querySelector('#inputTable tbody');
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td><input></td>
-        <td><input type="number"></td>
-        <td><input type="number"></td>
-      `;
-      tbody.appendChild(row);
-    }
-
-    function allocateBudget() {
-      const method = document.getElementById("method").value;
-      if (method === "maximize") allocateMaximizeGMV();
-      else if (method === "equally") allocateEqually();
-      else allocateProportional();
-    }
-
-    function parseInputRows() {
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-      let manualPercent = 0;
-      const manualChannels = [];
-      const autoChannels = [];
-
-      rows.forEach(row => {
-        const channel = row.cells[0].children[0].value;
-        const roas = parseFloat(row.cells[1].children[0].value);
-        const manual = parseFloat(row.cells[2].children[0].value);
-
-        if (!channel || isNaN(roas)) return;
-
-        if (!isNaN(manual)) {
-          manualPercent += manual;
-          manualChannels.push({ channel, roas, percent: manual });
-        } else {
-          autoChannels.push({ channel, roas });
-        }
-      });
-
-      return { manualChannels, autoChannels, manualPercent };
-    }
-
-    function allocateMaximizeGMV() {
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
-      const { manualChannels, autoChannels, manualPercent } = parseInputRows();
-
-      const remainingPercent = 100 - manualPercent;
-      autoChannels.sort((a, b) => b.roas - a.roas);
-      const totalAutoROAS = autoChannels.reduce((sum, c) => sum + c.roas, 0);
-
-      let allocatedPercent = 0;
-      autoChannels.forEach(channel => {
-        if (allocatedPercent < remainingPercent) {
-          let alloc = Math.min(remainingPercent - allocatedPercent, 100);
-          channel.percent = alloc;
-          allocatedPercent += alloc;
-        } else {
-          channel.percent = 0;
-        }
-      });
-      
-      const allChannels = [...manualChannels, ...autoChannels];
-      allChannels.forEach(c => {
-        c.budget = totalBudget * (c.percent / 100);
-        c.gmv = c.budget * c.roas;
-      });
-
-      displayOutput(allChannels, totalBudget, targetGMV, manualPercent);
-    }
-
-    function allocateEqually() {
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
-      const rows = document.querySelectorAll('#inputTable tbody tr');
-
-      const channels = [];
-      let manualPercent = 0;
-
-      rows.forEach(row => {
-        const channel = row.cells[0].children[0].value;
-        const roas = parseFloat(row.cells[1].children[0].value);
-        const manual = parseFloat(row.cells[2].children[0].value);
-        if (!channel || isNaN(roas)) return;
-
-        const ch = { channel, roas };
-        if (!isNaN(manual)) {
-          ch.percent = manual;
-          ch.budget = totalBudget * (manual / 100);
-          ch.gmv = ch.budget * ch.roas;
-          manualPercent += manual;
-        }
-        channels.push(ch);
-      });
-
-      const autoChannels = channels.filter(c => c.percent === undefined);
-      const remainingPercent = 100 - manualPercent;
-      const equalPercent = remainingPercent / autoChannels.length;
-
-      autoChannels.forEach(c => {
-        c.percent = equalPercent;
-        c.budget = totalBudget * (c.percent / 100);
-        c.gmv = c.budget * c.roas;
-      });
-
-      displayOutput(channels, totalBudget, targetGMV, manualPercent);
-    }
-
-    function allocateProportional() {
-      const totalBudget = parseFloat(document.getElementById('totalBudget').value);
-      const targetGMV = parseFloat(document.getElementById('targetGMV').value);
-      const { manualChannels, autoChannels, manualPercent } = parseInputRows();
-
-      const availablePercent = 100 - manualPercent;
-      const totalWeight = autoChannels.reduce((sum, c) => sum + c.roas, 0);
-
-      autoChannels.forEach(c => {
-        c.percent = (c.roas / totalWeight) * availablePercent;
-      });
-
-      const allChannels = [...manualChannels, ...autoChannels];
-      allChannels.forEach(c => {
-        c.budget = totalBudget * (c.percent / 100);
-        c.gmv = c.budget * c.roas;
-      });
-
-      displayOutput(allChannels, totalBudget, targetGMV, manualPercent);
-    }
-
-    function displayOutput(channels, totalBudget, targetGMV, manualPercent) {
-      const tbody = document.querySelector('#outputTable tbody');
       tbody.innerHTML = '';
-      let totalGMV = 0, usedBudget = 0, totalPercentUsed = 0;
-      const gmvData = [];
-
-      channels.forEach(c => {
-        usedBudget += c.budget;
-        totalGMV += c.gmv;
-        totalPercentUsed += c.percent;
-        gmvData.push({ channel: c.channel, gmv: c.gmv });
-
-        tbody.innerHTML += `
-          <tr>
-            <td>${c.channel}</td>
-            <td>${c.percent.toFixed(2)}%</td>
-            <td>$${c.budget.toFixed(2)}</td>
-            <td>${c.roas.toFixed(2)}</td>
-            <td>$${c.gmv.toFixed(2)}</td>
-          </tr>
-        `;
+      data.channels.forEach(({ channel, roas, percent }) => {
+        addNewRow(channel, roas, percent);
       });
-
-      const totalROAS = totalGMV / usedBudget;
-      document.getElementById('totalGMV').innerText = `$${totalGMV.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-      document.getElementById('totalROAS').innerText = totalROAS.toFixed(2);
-      document.getElementById('totalPercent').innerText = `${totalPercentUsed.toFixed(2)}%`;
-      document.getElementById('totalBudgetUsed').innerText = `$${usedBudget.toFixed(2)}`;
-      document.getElementById('gmvWarning').innerHTML =
-        totalGMV >= targetGMV ? `<p class="success">✅ Target GMV met or exceeded.</p>` : `<p class="warning">⚠️ Estimated GMV is below target!</p>`;
-      document.getElementById('budgetWarning').innerHTML =
-        manualPercent > 100 ? `<p class="warning">❌ Manual budget exceeds 100%!</p>` : '';
-
-      renderChart(gmvData);
-    }
-
-    function renderChart(data) {
-      const ctx = document.getElementById('gmvChart').getContext('2d');
-      const labels = data.map(d => d.channel);
-      const values = data.map(d => d.gmv);
-      const colors = data.map((_, i) => `hsl(${i * 360 / data.length}, 70%, 60%)`);
-
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Estimated GMV',
-            data: values,
-            backgroundColor: colors
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
-    }
-
-    function exportCSV() {
-      const rows = document.querySelectorAll('#outputTable tr');
-      let csv = [];
-      rows.forEach(row => {
-        let cols = Array.from(row.querySelectorAll('th, td')).map(cell => `"${cell.innerText}"`);
-        csv.push(cols.join(','));
-      });
-
-      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "budget_allocation.csv";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     }
   </script>
 </body>
